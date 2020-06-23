@@ -1,0 +1,67 @@
+@ECHO OFF
+
+REM **************************************************************************************************
+REM Export IMM Datasets
+REM
+REM Usage:
+REM    ExportIMM.bat <IMM_Export_Path> <SMI_SubPath> <RT_SubPath> <UA_SubPath>
+REM                         %1              %2          %3            %4      
+REM **************************************************************************************************
+
+SET IMMExportPath=%~1
+SET CurrentScriptPath=%~dp0
+
+REM ----------------
+REM Create Directory
+REM ----------------
+
+IF EXIST %IMMExportPath% (
+    RMDIR /S /Q %IMMExportPath%
+)
+SET SMISubPath=SMI
+SET RTSubPath=RT\CFE
+SET UASubPath=UA
+IF NOT _%2==_ (SET SMISubPath=%2)
+IF NOT _%3==_ (SET RTSubPath=%3)
+IF NOT _%4==_ (SET UASubPath=%4)
+
+REM ECHO SMI export path is %SMISubPath%
+REM ECHO RT export path is %RTSubPath%
+REM ECHO UA export path is %UASubPath%
+
+MKDIR %IMMExportPath%
+pushd %IMMExportPath%
+MKDIR %SMISubPath%
+pushd %IMMExportPath%
+MKDIR %RTSubPath%
+pushd %IMMExportPath%
+MKDIR %UASubPath%
+pushd %CurrentScriptPath%
+
+SET ObjectFinderToolPath=%SR5_InstPath%\Base\Engsys\Tools\ObjectFinder.exe
+SET PDMToolPath=%SR5_InstPath%\Bin\PCCProjMan.exe
+
+IF EXIST %ObjectFinderToolPath% (
+    REM SMIExportCommand
+    %ObjectFinderToolPath% -ds:SMI -jid:0 -ty:LocalControlCenter -ex:%IMMExportPath%\%SMISubPath%
+    REM RTExportCommand
+    REM ObjectFinder can directly exports IMM instances based on type sysRTUCategory.
+    REM %ObjectFinderToolPath% -ds:RT -jid:0 -ty:sysRTUCategory -ex:%IMMExportPath%\%RTSubPath%
+    REM So ignored second call for getting type name
+    REM CScript.Exe /Nologo """%CurrentScriptPath%\ExportRTCFE.vbs""" %IMMExportPath%\RT %IMMExportPath%\%RTSubPath%
+    REM UAExportCommand
+    REM ObjectFinder can directly exports IMM instances based on type sysUsers.
+    %ObjectFinderToolPath% -ds:UA -jid:0 -ty:ControlCenter -ex:%IMMExportPath%\%UASubPath%
+
+) ELSE (
+    REM SMIExportCommand
+    %PDMToolPath% /Export /Instances /GUID /Subtree /DataSet SMI /TypeInstanceNames RO /FilePath %IMMExportPath%\%SMISubPath%
+    REM RTExportCommand
+    %PDMToolPath% /Export /Instances /GUID /DataSet RT /TypeInstanceNames RO /FilePath %IMMExportPath%\RT
+    REM PDM requires type name to export IMM instances
+    CScript.Exe /Nologo """%CurrentScriptPath%\ExportRTCFE.vbs""" %IMMExportPath%\RT %IMMExportPath%\%RTSubPath%
+    REM UAExportCommand
+    REM %PDMToolPath% /Export /Instances /GUID /Subtree /DataSet UA /TypeInstanceNames RO /FilePath %IMMExportPath%\%UASubPath%
+)
+
+EXIT /B
